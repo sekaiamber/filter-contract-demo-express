@@ -11,7 +11,8 @@
     "start": "npm run babel && node -r dotenv/config lib/start.js",
     "startMonitor": "npm run babel && node -r dotenv/config lib/monitor/start.js",
     "pm2_start_server": "pm2 start --name sacte_eame npm -- run start",
-    "pm2_restart_server": "pm2 restart sacte_eame"
+    "pm2_restart_server": "pm2 restart sacte_eame",
+    "pm2_start_monitor": "pm2 start --name filter_monitor npm -- run startMonitor"
   },
   "dependencies": {
     "axios": "^0.24.0",

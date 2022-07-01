@@ -8,7 +8,7 @@ import {
   Default,
 } from 'sequelize-typescript'
 
-type InQueueLogState = 'created' | 'waiting' | 'pending' | 'resolved' | 'rejected' | 'error'
+export type InQueueLogState = 'created' | 'waiting' | 'pending' | 'resolved' | 'rejected' | 'error'
 
 export interface InQueueLogRawData {
   blockNumber: number,
@@ -22,6 +22,8 @@ export interface InQueueLogRawData {
 export interface InQueueLogDBData extends InQueueLogRawData {
   id: number
   state: InQueueLogState,
+  exTransactionHash: string | null,
+  exBlockNumber: number | null,
   errorMessage: string | null
 }
 
@@ -30,15 +32,15 @@ export interface InQueueLogDBData extends InQueueLogRawData {
 })
 export default class InQueueLog extends Model {
   @AllowNull(false)
-  @Column(DataType.INTEGER)
-  get blockNumber(): number {
-    return this.getDataValue('blockNumber')
-  }
-
-  @AllowNull(false)
   @Column(DataType.TEXT)
   get data(): string {
     return this.getDataValue('data')
+  }
+
+  @AllowNull(false)
+  @Column(DataType.INTEGER)
+  get blockNumber(): number {
+    return this.getDataValue('blockNumber')
   }
 
   @Unique
@@ -74,6 +76,16 @@ export default class InQueueLog extends Model {
     return this.getDataValue('state')
   }
 
+  @Column(DataType.INTEGER)
+  get exBlockNumber(): number | null {
+    return this.getDataValue('exBlockNumber')
+  }
+
+  @Column(DataType.STRING)
+  get exTransactionHash(): string | null {
+    return this.getDataValue('exTransactionHash')
+  }
+
   @Column(DataType.TEXT)
   get errorMessage(): string | null {
     return this.getDataValue('errorMessage')
@@ -82,13 +94,15 @@ export default class InQueueLog extends Model {
   getData(): InQueueLogDBData {
     const r: InQueueLogDBData = {
       id: this.id,
-      blockNumber: this.blockNumber,
       data: this.data,
+      blockNumber: this.blockNumber,
       transactionHash: this.transactionHash,
       user: this.user,
       amount: this.amount,
       index: this.index,
       state: this.state,
+      exBlockNumber: this.exBlockNumber,
+      exTransactionHash: this.exTransactionHash,
       errorMessage: this.errorMessage,
     }
     return r

@@ -87,6 +87,22 @@ export default class Constant extends Model {
     return ret
   }
 
+  setConstantValue(value: string | boolean | number | null): void {
+    switch (this.type) {
+      case 'decimal':
+        this.setDataValue('dataDecimal', value)
+        break
+      case 'string':
+        this.setDataValue('dataString', value)
+        break
+      case 'boolean':
+        this.setDataValue('dataBoolean', value)
+        break
+      default:
+        break
+    }
+  }
+
   static async findByName(name: string): Promise<Constant | null> {
     return await Constant.findOne({
       where: { name },

@@ -1,9 +1,10 @@
-import { BigNumber, ethers } from 'ethers'
+import { BigNumber, ethers, Wallet, Contract } from 'ethers'
+import { TransactionResponse, TransactionReceipt } from '@ethersproject/abstract-provider'
 // import { BSCFetcher } from '../fetchers'
 import filterAbi from '../web3/contracts/filterABI.json'
 import sequelize from '../db'
 import { Constant, InQueueLog } from '../db/models'
-import { InQueueLogRawData } from '../db/models/inQueueLog'
+import { InQueueLogRawData, InQueueLogState } from '../db/models/inQueueLog'
 
 export const sleep = async (ms: number): Promise<void> =>
   await new Promise((resolve) => setTimeout(resolve, ms))
@@ -13,6 +14,7 @@ export interface MonitorOption {
   filterContractAddress: string
   filterContractTopic: string
   filterContractDelay: number
+  filterOwnerPK: string
 }
 
 enum MONITOR_DB_KEYS {
@@ -26,7 +28,14 @@ export default class Monitor {
 
   private readonly filterContractInterface = new ethers.utils.Interface(filterAbi)
 
-  constructor(readonly option: MonitorOption) {}
+  private readonly filterOwner: Wallet
+  private readonly ownerSignedFilterContract: Contract
+
+  constructor(readonly option: MonitorOption) {
+    this.filterOwner = new Wallet(option.filterOwnerPK).connect(this.provider)
+    const filterContract = new Contract(option.filterContractAddress, filterAbi).connect(this.provider)
+    this.ownerSignedFilterContract = filterContract.connect(this.filterOwner)
+  }
 
   public async initialize(): Promise<void> {
     await this.connectToTheDatabase()
@@ -60,6 +69,7 @@ export default class Monitor {
     if (latestBlock - localBlock > 4999) {
       latestBlock = localBlock + 4999
     }
+    // console.log(`deal: ${localBlock} ~ ${latestBlock}`)
 
     try {
       const filter: ethers.providers.Filter = {
@@ -72,6 +82,12 @@ export default class Monitor {
       logs.forEach((log) => {
         this.processLog(log)
       })
+      // 更新blocknumber
+      const c = await Constant.findByName(MONITOR_DB_KEYS.MONITOR_LATEST_BLOCK)
+      if (c) {
+        c.setConstantValue(latestBlock)
+        await c.save()
+      }
     } catch (error) {
       console.log(error)
     }
@@ -99,25 +115,64 @@ export default class Monitor {
 
   private async processLog(log: InQueueLogRawData): Promise<void> {
     const [row] = await InQueueLog.findOrCreatePyTransactionHash(log.transactionHash, log)
+
     if (row.state !== 'created') return
     // 等待一段时间
     row.setDataValue('state', 'waiting')
     await row.save()
     await sleep(this.option.filterContractDelay)
+
+    // 二次确认
+    await row.reload()
+    if (row.state !== 'waiting') return
+
+    // TODO: 获取queue信息，是否还存在
     // 判定
     const passed = this.judgeLog(row)
     row.setDataValue('state', 'pending')
     await row.save()
-    if (passed) {
-      // call execute
-      row.setDataValue('state', 'resolved')
+
+    // 处理
+    const gasPrice = await this.provider.getGasPrice()
+    try {
+      let status: TransactionResponse
+      let state: InQueueLogState
+
+      if (passed) {
+        // call execute
+        status = await this.ownerSignedFilterContract.execute(row.index, {
+          gasPrice,
+          gasLimit: 500000
+        })
+        state = 'resolved'
+      } else {
+        // call revert
+        status = await this.ownerSignedFilterContract.revert(row.index, {
+          gasPrice,
+          gasLimit: 500000
+        })
+        state = 'rejected'
+      }
+
+      row.setDataValue('exTransactionHash', status.hash)
       await row.save()
-    } else {
-      // call revert
-      row.setDataValue('state', 'rejected')
-      await row.save()
+
+      const tx = await status.wait()
+      row.setDataValue('exBlockNumber', tx.blockNumber)
+      row.setDataValue('state', state)
+    } catch (error: any) {
+      let errorMessage = '/'
+      if (error.receipt) {
+        const receipt = error.receipt as TransactionReceipt
+        row.setDataValue('exBlockNumber', receipt.blockNumber)
+      }
+      if (error.reason) {
+        errorMessage = error.reason.toString()
+      }
+      row.setDataValue('errorMessage', errorMessage)
+      row.setDataValue('state', 'error')
     }
-    console.log(row.getData())
+    await row.save()
   }
 
   private judgeLog(row: InQueueLog): boolean {
