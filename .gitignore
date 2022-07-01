@@ -1,0 +1,10 @@
+node_modules
+lib
+output
+*.swp
+*.log
+.env
+upload
+public
+.yarn
+.yarnrc.yml
