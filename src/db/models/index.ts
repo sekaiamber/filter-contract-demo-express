@@ -1,3 +1,4 @@
 import Constant from './constant'
+import InQueueLog from './inQueueLog'
 
-export { Constant }
+export { Constant, InQueueLog }

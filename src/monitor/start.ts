@@ -4,6 +4,8 @@ import App from '.'
 const app = new App({
   interval: 4000,
   filterContractAddress: process.env.MONITOR_FILTER_ADDRESS!,
+  filterContractTopic: process.env.MONITOR_FILTER_TOPIC!,
+  filterContractDelay: parseInt(process.env.MONITOR_FILTER_DELAY!),
 })
 app
   .initialize()
