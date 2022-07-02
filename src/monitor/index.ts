@@ -6,7 +6,7 @@ import {
 // import { BSCFetcher } from '../fetchers'
 import filterAbi from '../web3/contracts/filterABI.json'
 import sequelize from '../db'
-import { Constant, InQueueLog } from '../db/models'
+import { Constant, InQueueLog, Whitelist } from '../db/models'
 import { InQueueLogRawData, InQueueLogState } from '../db/models/inQueueLog'
 
 export const sleep = async (ms: number): Promise<void> =>
@@ -143,7 +143,7 @@ export default class Monitor {
 
     // TODO: 获取queue信息，是否还存在
     // 判定
-    const passed = this.judgeLog(row)
+    const passed = await this.judgeLog(row)
     row.setDataValue('state', 'pending')
     await row.save()
 
@@ -173,6 +173,7 @@ export default class Monitor {
       await row.save()
 
       const tx = await status.wait()
+      await Whitelist.decreaseAmount(log.user)
       row.setDataValue('exBlockNumber', tx.blockNumber)
       row.setDataValue('state', state)
     } catch (error: any) {
@@ -190,7 +191,8 @@ export default class Monitor {
     await row.save()
   }
 
-  private judgeLog(row: InQueueLog): boolean {
-    return true
+  private async judgeLog(row: InQueueLog): Promise<boolean> {
+    const wl = await Whitelist.findOrCreateByAddress(row.user)
+    return wl.amount > 0
   }
 }

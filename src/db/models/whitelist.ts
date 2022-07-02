@@ -41,7 +41,8 @@ export default class Whitelist extends Model {
     return r
   }
 
-  static async increaseAmount(address: string, by = 1): Promise<Whitelist> {
+  static async findOrCreateByAddress(addr: string): Promise<Whitelist> {
+    const address = addr.toLowerCase()
     const [ins] = await Whitelist.findOrCreate({
       where: { address },
       defaults: {
@@ -49,19 +50,18 @@ export default class Whitelist extends Model {
         amount: 0,
       },
     })
+    return ins
+  }
+
+  static async increaseAmount(address: string, by = 1): Promise<Whitelist> {
+    const ins = await Whitelist.findOrCreateByAddress(address)
     await ins.increment('amount', { by })
     await ins.reload()
     return ins
   }
 
   static async decreaseAmount(address: string, by = 1): Promise<Whitelist> {
-    const [ins] = await Whitelist.findOrCreate({
-      where: { address },
-      defaults: {
-        address,
-        amount: 0,
-      },
-    })
+    const ins = await Whitelist.findOrCreateByAddress(address)
     if (ins.amount > 1) {
       await ins.increment('amount', { by: -by })
       await ins.reload()

@@ -34,14 +34,8 @@ export default class FilterController implements Controller {
     next: NextFunction
   ): void {
     const address = request.params.address.toLowerCase()
-    Whitelist.findOrCreate({
-      where: { address },
-      defaults: {
-        address,
-        amount: 0,
-      },
-    })
-      .then(([d]) => {
+    Whitelist.findOrCreateByAddress(address)
+      .then((d) => {
         response.jsonSuccess(d.getData())
       })
       .catch((e) => {
