@@ -1,5 +1,8 @@
 import { BigNumber, ethers, Wallet, Contract } from 'ethers'
-import { TransactionResponse, TransactionReceipt } from '@ethersproject/abstract-provider'
+import {
+  TransactionResponse,
+  TransactionReceipt,
+} from '@ethersproject/abstract-provider'
 // import { BSCFetcher } from '../fetchers'
 import filterAbi from '../web3/contracts/filterABI.json'
 import sequelize from '../db'
@@ -26,14 +29,19 @@ export default class Monitor {
     process.env.MONITOR_PROVIDER_RPC
   )
 
-  private readonly filterContractInterface = new ethers.utils.Interface(filterAbi)
+  private readonly filterContractInterface = new ethers.utils.Interface(
+    filterAbi
+  )
 
   private readonly filterOwner: Wallet
   private readonly ownerSignedFilterContract: Contract
 
   constructor(readonly option: MonitorOption) {
     this.filterOwner = new Wallet(option.filterOwnerPK).connect(this.provider)
-    const filterContract = new Contract(option.filterContractAddress, filterAbi).connect(this.provider)
+    const filterContract = new Contract(
+      option.filterContractAddress,
+      filterAbi
+    ).connect(this.provider)
     this.ownerSignedFilterContract = filterContract.connect(this.filterOwner)
   }
 
@@ -80,7 +88,9 @@ export default class Monitor {
       }
       const logs = await this.queryLogs(filter)
       logs.forEach((log) => {
-        this.processLog(log)
+        this.processLog(log).catch((e) => {
+          console.log(e)
+        })
       })
       // 更新blocknumber
       const c = await Constant.findByName(MONITOR_DB_KEYS.MONITOR_LATEST_BLOCK)
@@ -96,15 +106,17 @@ export default class Monitor {
     await this.fetch()
   }
 
-  private async queryLogs(filter: ethers.providers.Filter): Promise<InQueueLogRawData[]> {
+  private async queryLogs(
+    filter: ethers.providers.Filter
+  ): Promise<InQueueLogRawData[]> {
     const logs = await this.provider.getLogs(filter)
     const ret = logs.map((log) => {
       const event = this.filterContractInterface.parseLog(log)
       const d: InQueueLogRawData = {
         blockNumber: log.blockNumber,
         data: log.data,
-        transactionHash: log.transactionHash,
-        user: event.args.user,
+        transactionHash: log.transactionHash.toLocaleLowerCase(),
+        user: event.args.user.toLocaleLowerCase(),
         amount: (event.args.amount as BigNumber).toNumber(),
         index: (event.args.index as BigNumber).toNumber(),
       }
@@ -114,7 +126,10 @@ export default class Monitor {
   }
 
   private async processLog(log: InQueueLogRawData): Promise<void> {
-    const [row] = await InQueueLog.findOrCreatePyTransactionHash(log.transactionHash, log)
+    const [row] = await InQueueLog.findOrCreatePyTransactionHash(
+      log.transactionHash,
+      log
+    )
 
     if (row.state !== 'created') return
     // 等待一段时间
@@ -142,19 +157,19 @@ export default class Monitor {
         // call execute
         status = await this.ownerSignedFilterContract.execute(row.index, {
           gasPrice,
-          gasLimit: 500000
+          gasLimit: 500000,
         })
         state = 'resolved'
       } else {
         // call revert
         status = await this.ownerSignedFilterContract.revert(row.index, {
           gasPrice,
-          gasLimit: 500000
+          gasLimit: 500000,
         })
         state = 'rejected'
       }
 
-      row.setDataValue('exTransactionHash', status.hash)
+      row.setDataValue('exTransactionHash', status.hash.toLocaleLowerCase())
       await row.save()
 
       const tx = await status.wait()

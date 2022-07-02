@@ -2,7 +2,7 @@ import { Sequelize } from 'sequelize-typescript'
 import * as Models from './models'
 
 const { DB_HOST, DB_NAME, DB_USER, DB_PASS } = process.env
-const { Constant, InQueueLog } = Models
+const { Constant, InQueueLog, Whitelist } = Models
 
 const sequelize = new Sequelize({
   host: DB_HOST,
@@ -14,7 +14,7 @@ const sequelize = new Sequelize({
     timezone: 'Etc/GMT0',
   },
   logging: false,
-  models: [Constant, InQueueLog],
+  models: [Constant, InQueueLog, Whitelist],
 })
 
 export default sequelize

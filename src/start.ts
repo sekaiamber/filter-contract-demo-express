@@ -1,7 +1,17 @@
 import App from '.'
-import { PingpongController, UtilsController } from './controllers'
+import {
+  PingpongController,
+  UtilsController,
+  TxController,
+  FilterController,
+} from './controllers'
 
-const app = new App([new PingpongController(), new UtilsController()])
+const app = new App([
+  new PingpongController(),
+  new UtilsController(),
+  new TxController(),
+  new FilterController(),
+])
 app
   .initialize()
   .then(() => {

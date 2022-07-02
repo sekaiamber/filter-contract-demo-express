@@ -6,7 +6,7 @@ const app = new App({
   filterContractAddress: process.env.MONITOR_FILTER_ADDRESS!,
   filterContractTopic: process.env.MONITOR_FILTER_TOPIC!,
   filterContractDelay: parseInt(process.env.MONITOR_FILTER_DELAY!),
-  filterOwnerPK: process.env.MONITOR_FILTER_OWNER_PK!
+  filterOwnerPK: process.env.MONITOR_FILTER_OWNER_PK!,
 })
 app
   .initialize()

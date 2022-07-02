@@ -8,22 +8,28 @@ import {
   Default,
 } from 'sequelize-typescript'
 
-export type InQueueLogState = 'created' | 'waiting' | 'pending' | 'resolved' | 'rejected' | 'error'
+export type InQueueLogState =
+  | 'created'
+  | 'waiting'
+  | 'pending'
+  | 'resolved'
+  | 'rejected'
+  | 'error'
 
 export interface InQueueLogRawData {
-  blockNumber: number,
-  data: string,
-  transactionHash: string,
-  user: string,
-  amount: number,
-  index: number,
+  blockNumber: number
+  data: string
+  transactionHash: string
+  user: string
+  amount: number
+  index: number
 }
 
 export interface InQueueLogDBData extends InQueueLogRawData {
   id: number
-  state: InQueueLogState,
-  exTransactionHash: string | null,
-  exBlockNumber: number | null,
+  state: InQueueLogState
+  exTransactionHash: string | null
+  exBlockNumber: number | null
   errorMessage: string | null
 }
 
@@ -71,7 +77,16 @@ export default class InQueueLog extends Model {
 
   @AllowNull(false)
   @Default('created')
-  @Column(DataType.ENUM('created', 'waiting', 'pending', 'resolved', 'rejected', 'error'))
+  @Column(
+    DataType.ENUM(
+      'created',
+      'waiting',
+      'pending',
+      'resolved',
+      'rejected',
+      'error'
+    )
+  )
   get state(): InQueueLogState {
     return this.getDataValue('state')
   }
@@ -122,7 +137,7 @@ export default class InQueueLog extends Model {
 
   static async findOrCreatePyTransactionHash(
     transactionHash: string,
-    defaultValue: InQueueLogRawData,
+    defaultValue: InQueueLogRawData
   ): Promise<[InQueueLog, boolean]> {
     return await InQueueLog.findOrCreate({
       where: { transactionHash },
