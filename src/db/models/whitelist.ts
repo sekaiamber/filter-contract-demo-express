@@ -62,8 +62,13 @@ export default class Whitelist extends Model {
 
   static async decreaseAmount(address: string, by = 1): Promise<Whitelist> {
     const ins = await Whitelist.findOrCreateByAddress(address)
-    if (ins.amount > 1) {
-      await ins.increment('amount', { by: -by })
+    if (ins.amount > 0) {
+      if (ins.amount > by) {
+        await ins.increment('amount', { by: -by })
+      } else {
+        ins.setDataValue('amount', 0)
+        await ins.save()
+      }
       await ins.reload()
     }
     return ins
